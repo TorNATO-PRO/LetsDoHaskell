@@ -1,5 +1,7 @@
 -- using this for left folds
-import Data.List (foldl')
+-- using this for left folds
+import Data.List (foldl', permutations)
+import System.Random
 
 -- Find the last element of a list.
 -- In regular haskell: myLast = last :P
@@ -167,11 +169,44 @@ rotate list@(x : xs) n
   | n > 0 = rotate (xs ++ [x]) (pred n)
   | otherwise = rotate list $ length list + n
 
+-- remove from the list a given element
 removeAt :: (Num t, Ord t, Enum t) => t -> [a] -> (a, [a])
-removeAt n list = removeAt' (pred n) list []
+removeAt n list = removeAt' n list []
   where
     removeAt' _ [] acc = error "Index out of range"
-    removeAt' 0 (x : xs) acc = (x, reverse acc ++ xs)
-    removeAt' n (x : xs) acc
-      | n < 0 = error "Cannot have a number less than zero"
-      | otherwise = removeAt' (pred n) xs (x : acc)
+    removeAt' 1 (x : xs) acc = (x, reverse acc ++ xs)
+    removeAt' n (x : xs) acc = removeAt' (pred n) xs (x : acc)
+
+-- insert an element at a given position into a list
+insertAt :: a -> [a] -> Int -> [a]
+insertAt _ [] _ = error "Index out of range"
+insertAt elem (x : xs) 1 = elem : x : xs
+insertAt elem (x : xs) index = x : insertAt elem xs (pred index)
+
+-- Create a list containing all integers within a given range.
+range :: Integer -> Integer -> [Integer]
+range a b
+ | a < b = [a..b]
+ | otherwise = [a,(pred a)..b]
+
+-- Extract a given number of randomly seleced elements
+rndSelect1 :: [a] -> Int -> IO [a]
+rndSelect1 list k = do
+  gen <- getStdGen
+  let nums = take k $ randomRs (0, pred . length $ list) gen
+  return $ map (list !!) nums
+
+-- Lotto: Draw N different random numbers from the set 1..M.
+rndSelect2 :: Int -> Int -> IO [Int]
+rndSelect2 n m = do
+  gen <- getStdGen
+  let nums = take n $ randomRs (1, m) gen
+  return nums
+
+-- Generate a random permutation of the elements of a list.
+-- Well isn't this efficient :P
+rndPermu :: [a] -> IO [a]
+rndPermu list = do
+  gen <- getStdGen
+  let perms = permutations list
+  return $ perms !! head (randomRs (0, pred . length $ perms) gen)
