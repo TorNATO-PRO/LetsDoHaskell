@@ -89,7 +89,7 @@ data Encoded a = Multiple Int a | Single a deriving (Show)
 -- no duplicates it is simply copied into the result list. Only elements with
 -- duplicates are transferred as (N E) lists.
 encodeModified :: Eq b => [b] -> [Encoded b]
-encodeModified = map (\(x : xs) -> encode' x $ length (x : xs)) . pack
+encodeModified = map (\list@(x : xs) -> encode' x $ length list) . pack
   where
     encode' x 1 = Single x
     encode' x n = Multiple n x
@@ -129,6 +129,49 @@ repli :: [a] -> Int -> [a]
 repli list k = repli' list k
   where
     repli' [] _ = []
-    repli' (x:xs) 1 = x : repli' xs k
-    repli' (x:xs) n = x : repli' (x:xs) (pred n)
-     
+    repli' (x : xs) 1 = x : repli' xs k
+    repli' (x : xs) n = x : repli' (x : xs) (pred n)
+
+-- Drop every N'th element from a list.
+dropEvery :: [a] -> Int -> [a]
+dropEvery list k = dropEvery' list k
+  where
+    dropEvery' [] _ = []
+    dropEvery' (x : xs) 1 = dropEvery' xs k
+    dropEvery' (x : xs) n = x : dropEvery' xs (pred n)
+
+-- Split a list into two parts; the length of the first part is given.
+-- Yeah im lazy, your point?
+split :: [a] -> Int -> ([a], [a])
+split list k = splitAt k list
+
+-- Extract a slice from a list.
+-- Slices a list containing the elements between the i'th and k'th element
+-- of the original list (both limits included). Start counting the elements
+-- with 1.
+slice :: [a] -> Int -> Int -> [a]
+slice list i k = slice' list i k 1
+  where
+    slice' [] _ _ _ = []
+    slice' (x : xs) i k n
+      | n >= i && n <= k = x : slice' xs i k (succ n)
+      | n > k = []
+      | otherwise = slice' xs i k $ succ n
+
+-- Rotate a list N places to the left.
+-- Linked lists and their efficiency lmao (I'm being sarcastic)
+rotate :: [a] -> Int -> [a]
+rotate [] _ = []
+rotate list 0 = list
+rotate list@(x : xs) n
+  | n > 0 = rotate (xs ++ [x]) (pred n)
+  | otherwise = rotate list $ length list + n
+
+removeAt :: (Num t, Ord t, Enum t) => t -> [a] -> (a, [a])
+removeAt n list = removeAt' (pred n) list []
+  where
+    removeAt' _ [] acc = error "Index out of range"
+    removeAt' 0 (x : xs) acc = (x, reverse acc ++ xs)
+    removeAt' n (x : xs) acc
+      | n < 0 = error "Cannot have a number less than zero"
+      | otherwise = removeAt' (pred n) xs (x : acc)
