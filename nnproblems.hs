@@ -66,6 +66,7 @@ compress (x : y : xs) = if x /= y then x : compress (y : xs) else compress (y : 
 -- Pack consecutive duplicates of list elements into sublists.
 -- If a list contains repeated elements they should be placed in separate sublists.
 pack :: Eq a => [a] -> [[a]]
+pack [] = []
 pack (x : xs) = pack' xs [x]
   where
     pack' [] acc = [acc]
@@ -73,11 +74,61 @@ pack (x : xs) = pack' xs [x]
       | d == head acc = pack' ds (d : acc)
       | otherwise = acc : pack' ds [d]
 
--- Run-length encoding of a list. Use the result of problem P09 
--- to implement the so-called run-length encoding data compression method. 
--- Consecutive duplicates of elements are encoded as lists (N E) where N is the 
+-- Run-length encoding of a list. Use the result of problem P09
+-- to implement the so-called run-length encoding data compression method.
+-- Consecutive duplicates of elements are encoded as lists (N E) where N is the
 -- number of duplicates of the element E.
 encode :: Eq b => [b] -> [(Integer, b)]
-encode list = map (\(x:xs) -> (myLength (x:xs), x)) $ pack list
+encode = map (\(x : xs) -> (myLength (x : xs), x)) . pack
 
+-- define a new data type to do the next questions
+data Encoded a = Multiple Int a | Single a deriving (Show)
 
+-- Modified run-length encoding.
+-- Modify the result of problem 10 in such a way that if an element has
+-- no duplicates it is simply copied into the result list. Only elements with
+-- duplicates are transferred as (N E) lists.
+encodeModified :: Eq b => [b] -> [Encoded b]
+encodeModified = map (\(x : xs) -> encode' x $ length (x : xs)) . pack
+  where
+    encode' x 1 = Single x
+    encode' x n = Multiple n x
+
+-- Decode a run-length encoded list
+-- Given a run-length code list generated as specified in problem 11. Construct its uncompressed version.
+decodeModified :: [Encoded a] -> [a]
+decodeModified = concatMap decode'
+  where
+    decode' (Multiple n a) = replicate n a
+    decode' (Single a) = [a]
+
+-- Run-length encoding of a list (direct solution).
+-- Implement the so-called run-length encoding data compression method directly.
+-- I.e. don't explicitly create the sublists containing the duplicates, as in problem 9,
+-- but only count them. As in problem P11, simplify the result list by
+-- replacing the singleton lists (1 X) by X.
+encodeDirect :: Eq a => [a] -> [Encoded a]
+encodeDirect [] = []
+encodeDirect (x : xs) = encodeDirect' xs x 1
+  where
+    encodeDirect' [] curr 1 = [Single curr]
+    encodeDirect' [] curr n = [Multiple n curr]
+    encodeDirect' (d : ds) curr total
+      | d == curr = encodeDirect' ds curr (succ total)
+      | otherwise =
+        if total == 1
+          then Single curr : encodeDirect' ds d 1
+          else Multiple total curr : encodeDirect' ds d 1
+
+-- Duplicate the elements of a list.
+dupli :: [a] -> [a]
+dupli = foldr (\x xs -> x : x : xs) []
+
+-- Replicate the elements of a list a given number of times.
+repli :: [a] -> Int -> [a]
+repli list k = repli' list k
+  where
+    repli' [] _ = []
+    repli' (x:xs) 1 = x : repli' xs k
+    repli' (x:xs) n = x : repli' (x:xs) (pred n)
+     
