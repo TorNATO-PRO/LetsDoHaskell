@@ -43,3 +43,41 @@ myReverse = foldl' (flip (:)) []
 -- Be enlightened :P
 isPalindrome :: Eq a => [a] -> Bool
 isPalindrome list = foldr (\(a, b) xs -> a == b && xs) True $ zip list $ myReverse list
+
+data NestedList a = Elem a | List [NestedList a]
+
+-- Transform a list, possibly holding lists as elements into a `flat' list by replacing each list with its elements (recursively).
+flatten :: NestedList a -> [a]
+flatten (List []) = []
+flatten (Elem a) = [a]
+-- concatMap flatten a
+flatten (List a) = flatten' a
+  where
+    flatten' [] = []
+    flatten' (x : xs) = flatten x ++ flatten' xs
+
+-- Eliminate consecutive duplicates of list elements.
+-- too lazy to do TCO!
+compress :: Eq a => [a] -> [a]
+compress [] = []
+compress [x] = [x]
+compress (x : y : xs) = if x /= y then x : compress (y : xs) else compress (y : xs)
+
+-- Pack consecutive duplicates of list elements into sublists.
+-- If a list contains repeated elements they should be placed in separate sublists.
+pack :: Eq a => [a] -> [[a]]
+pack (x : xs) = pack' xs [x]
+  where
+    pack' [] acc = [acc]
+    pack' (d : ds) acc
+      | d == head acc = pack' ds (d : acc)
+      | otherwise = acc : pack' ds [d]
+
+-- Run-length encoding of a list. Use the result of problem P09 
+-- to implement the so-called run-length encoding data compression method. 
+-- Consecutive duplicates of elements are encoded as lists (N E) where N is the 
+-- number of duplicates of the element E.
+encode :: Eq b => [b] -> [(Integer, b)]
+encode list = map (\(x:xs) -> (myLength (x:xs), x)) $ pack list
+
+
