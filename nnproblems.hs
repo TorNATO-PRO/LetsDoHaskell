@@ -208,5 +208,7 @@ rndSelect2 n m = do
 rndPermu :: [a] -> IO [a]
 rndPermu list = do
   gen <- getStdGen
-  let perms = permutations list
-  return $ perms !! head (randomRs (0, pred . length $ perms) gen)
+  return $ perms !! head (randomRs (0, pred . factorial $ length list) gen)
+  where
+    perms = permutations list
+    factorial n = product [1..n]
