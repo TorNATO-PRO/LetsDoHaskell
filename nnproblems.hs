@@ -1,5 +1,5 @@
 -- using this for left folds
-import Data.List (foldl', permutations, subsequences, sortBy, partition)
+import Data.List (foldl', group, partition, permutations, sort, sortBy, subsequences)
 import System.Random
 
 -- Find the last element of a list.
@@ -185,8 +185,8 @@ insertAt elem (x : xs) index = x : insertAt elem xs (pred index)
 -- Create a list containing all integers within a given range.
 range :: Integer -> Integer -> [Integer]
 range a b
- | a < b = [a..b]
- | otherwise = [a,(pred a)..b]
+  | a < b = [a .. b]
+  | otherwise = [a, (pred a) .. b]
 
 -- Extract a given number of randomly seleced elements
 rndSelect1 :: [a] -> Int -> IO [a]
@@ -210,11 +210,11 @@ rndPermu list = do
   return $ perms !! head (randomRs (0, pred . factorial $ length list) gen)
   where
     perms = permutations list
-    factorial n = product [1..n]
+    factorial n = product [1 .. n]
 
 -- Generate the combinations of K distinct objects chosen from the N elements of a list'
 combinations :: Int -> [a] -> [[a]]
-combinations n list = [a | a <- subsequences list, length a == 3]
+combinations n list = [a | a <- subsequences list, length a == n]
 
 -- Group the elements of a set into disjoint subsets.
 -- HMMM, yeah no
@@ -222,17 +222,94 @@ combinations n list = [a | a <- subsequences list, length a == 3]
 -- sort by length
 lsort :: [[a]] -> [[a]]
 lsort [] = []
-lsort (x:xs) = lsort lt ++ [x] ++ lsort gt
+lsort (x : xs) = lsort lt ++ [x] ++ lsort gt
   where
     (lt, gt) = partition (\lambda -> length lambda < length x) xs
 
 -- sort by length frequency
+lfsort :: [[a]] -> [[a]]
 lfsort list = map snd . sortBy byTupleFst $ tuplify list
   where
     byTupleFst (a, _) (b, _)
-     | a < b = LT
-     | a > b = GT
-     | otherwise = EQ
+      | a < b = LT
+      | a > b = GT
+      | otherwise = EQ
     tuplify = map (\a -> (occurences a, a))
       where
         occurences x = length $ filter (\b -> length b == length x) list
+
+-- Determine whether a given integer number is prime.
+isPrime :: Integer -> Bool
+isPrime x
+  | x < 0 = isPrime $ negate x
+  | x <= 3 = x > 1
+  | even x || x `rem` 3 == 0 = False
+  | otherwise = recursiveCheck x 5
+  where
+    recursiveCheck x index
+      | index ^ 2 > x = True
+      | otherwise = not (x `rem` index == 0 || x `mod` (index + 2) == 0) && recursiveCheck x (index + 6)
+
+-- Determine the greatest common divisor of two integer numbers
+myGCD :: Integer -> Integer -> Integer
+myGCD a 0 = abs a
+myGCD a b = gcd b (a `mod` b)
+
+-- Determine whether two positive integer numbers are coprime. Two numbers are coprime if their greatest common divisor equals 1.
+coprime :: Integer -> Integer -> Bool
+coprime a b = myGCD a b == 1
+
+-- Calculate Euler's totient function phi(m).
+totient :: Integer -> Int
+totient x = (length . filter (`coprime` x)) [1 .. (pred x)]
+
+-- Determine the prime factors of a given positive integer. Construct a flat list containing the prime factors in ascending order.
+-- Thank you, haskell lazy eval
+primeFactors :: Integer -> [Integer]
+primeFactors num = sort $ factors [] primes num
+  where
+    primes = filter isPrime [2 ..]
+    factors acc _ 1 = acc
+    factors acc list@(x : xs) n
+      | n `rem` x == 0 = factors (x : acc) list $ n `div` x
+      | otherwise = factors acc xs n
+
+-- Determine the prime factors of a given positive integer.
+-- Construct a list containing the prime factors and their multiplicity.
+primeFactorsMult :: Integer -> [(Integer, Integer)]
+primeFactorsMult = map (\list@(x : xs) -> (x, fromIntegral . length $ list)) . group . primeFactors
+
+-- Calculate Euler's totient function phi(m) (improved).
+phiMproved :: Integer -> Integer
+phiMproved num = foldr (\(p, m) xs -> (p - 1) * p ^ (m - 1) * xs) 1 $ primeFactorsMult num
+
+-- Problem 38, solutions compared :P
+
+-- Given a range of integers by its lower and upper limit, construct a
+-- list of all prime numbers in that range.
+primesR :: Integer -> Integer -> [Integer]
+primesR a b = filter isPrime [a .. b]
+
+-- Goldbach's conjecture.
+goldbach :: Integer -> (Integer, Integer)
+goldbach 2 = error "The number has to be greater than two!"
+goldbach num =
+  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. num]
+   in conjecture primeList
+  where
+    conjecture []
+      | odd num = error "It has to be an even number for goldbach's conjecture to work!"
+      | otherwise = error "Please contact a mathematician, Goldbach is wrong!"
+    conjecture (x : xs) = (x, num - x)
+
+-- Given a range of integers by its lower and upper limit, 
+-- print a list of all even numbers and their Goldbach composition.
+goldbachList :: Integer -> Integer -> [(Integer, Integer)]
+goldbachList a b = map goldbach $ filter even [a..b]
+
+-- In most cases, if an even number is written as the sum of two prime numbers, 
+-- one of them is very small. Very rarely, the primes are both bigger than say 50. 
+-- Try to find out how many such cases there are in the range 2..3000.
+goldbachList' :: Integer -> Integer -> Integer -> [(Integer, Integer)]
+goldbachList' a b inc = filter (\(a, b) -> a > inc && b > inc) $ map goldbach $ filter even [3..b]
+
