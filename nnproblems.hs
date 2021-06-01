@@ -1,6 +1,5 @@
 -- using this for left folds
--- using this for left folds
-import Data.List (foldl', permutations)
+import Data.List (foldl', permutations, subsequences, sortBy, partition)
 import System.Random
 
 -- Find the last element of a list.
@@ -212,3 +211,28 @@ rndPermu list = do
   where
     perms = permutations list
     factorial n = product [1..n]
+
+-- Generate the combinations of K distinct objects chosen from the N elements of a list'
+combinations :: Int -> [a] -> [[a]]
+combinations n list = [a | a <- subsequences list, length a == 3]
+
+-- Group the elements of a set into disjoint subsets.
+-- HMMM, yeah no
+
+-- sort by length
+lsort :: [[a]] -> [[a]]
+lsort [] = []
+lsort (x:xs) = lsort lt ++ [x] ++ lsort gt
+  where
+    (lt, gt) = partition (\lambda -> length lambda < length x) xs
+
+-- sort by length frequency
+lfsort list = map snd . sortBy byTupleFst $ tuplify list
+  where
+    byTupleFst (a, _) (b, _)
+     | a < b = LT
+     | a > b = GT
+     | otherwise = EQ
+    tuplify = map (\a -> (occurences a, a))
+      where
+        occurences x = length $ filter (\b -> length b == length x) list
