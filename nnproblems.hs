@@ -294,7 +294,7 @@ primesR a b = filter isPrime [a .. b]
 goldbach :: Integer -> (Integer, Integer)
 goldbach 2 = error "The number has to be greater than two!"
 goldbach num =
-  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [3 .. num]
+  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. num]
    in conjecture primeList
   where
     conjecture []
