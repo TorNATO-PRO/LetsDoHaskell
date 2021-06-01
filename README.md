@@ -1,4 +1,4 @@
-# Lets do some Haskell!
+# How about we do some Haskell?
 
 Attempting the [99 Haskell problems](https://wiki.haskell.org/H-99:_Ninety-Nine_Haskell_Problems) (well, apparently there is actually only 88) to become a better [Haskell](https://www.haskell.org/) developer.
 
