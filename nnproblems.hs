@@ -294,13 +294,13 @@ primesR a b = filter isPrime [a .. b]
 goldbach :: Integer -> (Integer, Integer)
 goldbach 2 = error "The number has to be greater than two!"
 goldbach num =
-  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. num]
+  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [3 .. num]
    in conjecture primeList
   where
     conjecture []
       | odd num = error "It has to be an even number for goldbach's conjecture to work!"
       | otherwise = error "Please contact a mathematician, Goldbach is wrong!"
-    conjecture (x : xs) = (x, num - x)
+    conjecture (x : _) = (x, num - x)
 
 -- Given a range of integers by its lower and upper limit, 
 -- print a list of all even numbers and their Goldbach composition.
