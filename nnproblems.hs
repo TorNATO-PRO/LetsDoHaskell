@@ -292,24 +292,23 @@ primesR a b = filter isPrime [a .. b]
 
 -- Goldbach's conjecture.
 goldbach :: Integer -> (Integer, Integer)
-goldbach 2 = error "The number has to be greater than two!"
-goldbach num =
-  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. num]
-   in conjecture primeList
+goldbach num
+  | num <= 2 = error "The number must be greater than 2 to apply"
+  | odd num = error "It has to be an even number for goldbach's conjecture to work!"
+  | otherwise =
+    let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. (num `div` 2)]
+     in conjecture primeList
   where
-    conjecture []
-      | odd num = error "It has to be an even number for goldbach's conjecture to work!"
-      | otherwise = error "Please contact a mathematician, Goldbach is wrong!"
+    conjecture [] = error "Please contact a mathematician, Goldbach is wrong!"
     conjecture (x : _) = (x, num - x)
 
--- Given a range of integers by its lower and upper limit, 
+-- Given a range of integers by its lower and upper limit,
 -- print a list of all even numbers and their Goldbach composition.
 goldbachList :: Integer -> Integer -> [(Integer, Integer)]
-goldbachList a b = map goldbach $ filter even [a..b]
+goldbachList a b = map goldbach $ filter even [a .. b]
 
--- In most cases, if an even number is written as the sum of two prime numbers, 
--- one of them is very small. Very rarely, the primes are both bigger than say 50. 
+-- In most cases, if an even number is written as the sum of two prime numbers,
+-- one of them is very small. Very rarely, the primes are both bigger than say 50.
 -- Try to find out how many such cases there are in the range 2..3000.
 goldbachList' :: Integer -> Integer -> Integer -> [(Integer, Integer)]
-goldbachList' a b inc = filter (\(a, b) -> a > inc && b > inc) $ map goldbach $ filter even [3..b]
-
+goldbachList' a b inc = filter (\(a, b) -> a > inc && b > inc) $ map goldbach $ filter even [3 .. b]

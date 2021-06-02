@@ -35,15 +35,16 @@ myGCD a b = gcd b (a `mod` b)
 
 ```hs
 -- Goldbach's conjecture.
+-- Goldbach's conjecture.
 goldbach :: Integer -> (Integer, Integer)
-goldbach 2 = error "The number has to be greater than two!"
-goldbach num =
-  let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [3 .. num]
-   in conjecture primeList
+goldbach num
+  | num <= 2 = error "The number must be greater than 2 to apply"
+  | odd num = error "It has to be an even number for goldbach's conjecture to work!"
+  | otherwise =
+    let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. (num `div` 2)]
+     in conjecture primeList
   where
-    conjecture []
-      | odd num = error "It has to be an even number for goldbach's conjecture to work!"
-      | otherwise = error "Please contact a mathematician, Goldbach is wrong!"
+    conjecture [] = error "Please contact a mathematician, Goldbach is wrong!"
     conjecture (x : _) = (x, num - x)
 ```
 
