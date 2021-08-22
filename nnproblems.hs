@@ -95,6 +95,8 @@ encodeModified = map (\list@(x : xs) -> encode' x $ length list) . pack
     encode' x 1 = Single x
     encode' x n = Multiple n x
 
+-- yo
+
 -- Decode a run-length encoded list
 -- Given a run-length code list generated as specified in problem 11. Construct its uncompressed version.
 decodeModified :: [Encoded a] -> [a]
