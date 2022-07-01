@@ -6,47 +6,31 @@ Attempting the [99 Haskell problems](https://wiki.haskell.org/H-99:_Ninety-Nine_
 #### Some code that I am proud of:
 
 ```hs
-isPalindrome :: Eq a => [a] -> Bool
-isPalindrome list = foldr (\(a, b) xs -> a == b && xs) True $ zip list $ myReverse list
+isPalindrome :: (Eq a) => [a] -> Bool
+isPalindrome lst = all (uncurry (==)) $ zip lst (rev lst)
 ```
 
 ```hs
-encode :: Eq b => [b] -> [(Integer, b)]
-encode = map (\(x : xs) -> (myLength (x : xs), x)) . pack
+encode :: Eq a => [a] -> [(Int, [a])]
+encode = map (\a -> (length' a, a)) . pack
 ```
 
 ```hs
-lsort :: [[a]] -> [[a]]
-lsort [] = []
-lsort (x : xs) = lsort lt ++ [x] ++ lsort gt
-  where
-    (lt, gt) = partition (\lambda -> length lambda < length x) xs
+-- groups the elements of a set into disjoint subsets
+group' :: (Eq a) => [Int] -> [a] -> [[[a]]]
+group' [] _ = []
+group' [_] lst = [[lst]]
+group' (d : ds) lst = [c : g | c <- combinations d lst, g <- group' ds (lst \\ c)]
 ```
 
 ```hs
+-- generates the combinations of k distinct object from the n elements of a list
 combinations :: Int -> [a] -> [[a]]
-combinations n list = [a | a <- subsequences list, length a == n]
-```
-
-```hs
-myGCD :: Integer -> Integer -> Integer
-myGCD a 0 = abs a
-myGCD a b = gcd b (a `mod` b)
-```
-
-```hs
--- Goldbach's conjecture.
--- Goldbach's conjecture.
-goldbach :: Integer -> (Integer, Integer)
-goldbach num
-  | num <= 2 = error "The number must be greater than 2 to apply"
-  | odd num = error "It has to be an even number for goldbach's conjecture to work!"
-  | otherwise =
-    let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. (num `div` 2)]
-     in conjecture primeList
-  where
-    conjecture [] = error "Please contact a mathematician, Goldbach is wrong!"
-    conjecture (x : _) = (x, num - x)
+combinations _ [] = []
+combinations n lst@(x : xs)
+  | n <= 0 = []
+  | n == 1 = [[a] | a <- lst]
+  | otherwise = [x : a | a <- combinations (n - 1) xs] ++ combinations n xs
 ```
 
 ---
