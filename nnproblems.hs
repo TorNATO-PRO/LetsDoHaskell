@@ -1,316 +1,298 @@
--- using this for left folds
-import Data.List (foldl', group, partition, permutations, sort, sortBy, subsequences)
-import System.Random
+-- attempting Haskell's 99 problems
 
--- Find the last element of a list.
--- In regular haskell: myLast = last :P
--- Guess I have to do this with recursion and
--- not higher order functions huh?
-myLast :: [p] -> p
-myLast [] = error "The list is empty!"
-myLast [x] = x
-myLast (x : xs) = myLast xs
+import Data.List (foldl', nub, sortBy, (\\))
+import Data.Map (Map)
+import qualified Data.Map as Map
+import System.Random (Random (randomRs), getStdGen)
 
--- Find the last but one element of a list.
-myButLast :: [c] -> c
-myButLast = myLast . init
+-- returns the last element of a list
+last' :: [a] -> Maybe a
+last' [] = Nothing
+last' [x] = Just x
+last' (_ : xs) = last' xs
 
--- Find the K'th element of a list. The first
--- element in the list is number 1
--- The cheating way to do this would be
--- elementAt q x = q !! (pred x)
-elementAt :: Integral t => [p] -> t -> p
-elementAt [] _ = error "Empty list"
-elementAt (x : xs) 1 = x
-elementAt (x : xs) n = elementAt xs $ pred n
+-- returns the last two elements of a list
+lastTwo :: [a] -> Maybe (a, a)
+lastTwo [] = Nothing
+lastTwo [x] = Nothing
+lastTwo [x, y] = Just (x, y)
+lastTwo (_ : xs) = lastTwo xs
 
--- Find the number of elements of a list
--- Lets get that TCO and currying!!!
-myLength :: [a] -> Integer
-myLength = myLength' 0
-  where
-    myLength' n [] = n
-    myLength' n (x : xs) = myLength' (succ n) xs
+-- obtains the nth element of a list
+nthElement :: [a] -> Int -> Maybe a
+nthElement [] _ = Nothing
+nthElement (x : _) 0 = Just x
+nthElement (_ : xs) n
+  | n < 0 = Nothing
+  | otherwise = nthElement xs (n - 1)
 
--- Reverse a list :P
--- Kinda like reversing a linkedlist for
--- an interview, but we are doing it the Chad
--- way. And no, I am not just going to do
--- myReverse = reverse :()
-myReverse :: [a] -> [a]
-myReverse = foldl' (flip (:)) []
+-- determines the length of a list
+length' :: [a] -> Int
+length' = foldr (\_ xs -> 1 + xs) 0
 
--- Find out whether a list is a palindrome. A palindrome can be read forward or backward; e.g. (x a m a x).
--- Be enlightened :P
-isPalindrome :: Eq a => [a] -> Bool
-isPalindrome list = foldr (\(a, b) xs -> a == b && xs) True $ zip list $ myReverse list
+-- reverses a list
+rev :: [a] -> [a]
+rev = foldl' (flip (:)) []
 
+-- determines whether a list is a palindrome
+isPalindrome :: (Eq a) => [a] -> Bool
+isPalindrome lst = all (uncurry (==)) $ zip lst (rev lst)
+
+-- Nested List Data Structure
 data NestedList a = Elem a | List [NestedList a]
 
--- Transform a list, possibly holding lists as elements into a `flat' list by replacing each list with its elements (recursively).
-flatten :: NestedList a -> [a]
-flatten (List []) = []
-flatten (Elem a) = [a]
--- concatMap flatten a
-flatten (List a) = flatten' a
-  where
-    flatten' [] = []
-    flatten' (x : xs) = flatten x ++ flatten' xs
+-- flatten a list
+flatten' :: NestedList a -> [a]
+flatten' (Elem a) = [a]
+flatten' (List []) = []
+flatten' (List xs) = concatMap flatten' xs
 
--- Eliminate consecutive duplicates of list elements.
--- too lazy to do TCO!
-compress :: Eq a => [a] -> [a]
-compress [] = []
-compress [x] = [x]
-compress (x : y : xs) = if x /= y then x : compress (y : xs) else compress (y : xs)
+-- eliminates consecutive duplicate elements
+compress :: (Eq a) => [a] -> [a]
+compress = foldr (\x xs -> x : dropWhile (== x) xs) []
 
--- Pack consecutive duplicates of list elements into sublists.
--- If a list contains repeated elements they should be placed in separate sublists.
-pack :: Eq a => [a] -> [[a]]
+-- packs consecutive duplicate elements into sublists
+pack :: (Eq a) => [a] -> [[a]]
 pack [] = []
-pack (x : xs) = pack' xs [x]
+pack (x : xs) = (x : takeWhile (== x) xs) : pack (dropWhile (== x) xs)
+
+-- perform length encoding of a list
+encode :: Eq a => [a] -> [(Int, [a])]
+encode = map (\a -> (length' a, a)) . pack
+
+-- List Encoding Data Structure
+data EncodingData a = Multiple Int a | Single a deriving (Show)
+
+-- a modified encoding of a list
+encodeModified :: Eq a => [a] -> [EncodingData a]
+encodeModified = map encodeList . pack
   where
-    pack' [] acc = [acc]
-    pack' (d : ds) acc
-      | d == head acc = pack' ds (d : acc)
-      | otherwise = acc : pack' ds [d]
+    encodeList [] = error "This empty list is not supposed to be here"
+    encodeList [x] = Single x
+    encodeList lst@(x : _) = Multiple (length' lst) x
 
--- Run-length encoding of a list. Use the result of problem P09
--- to implement the so-called run-length encoding data compression method.
--- Consecutive duplicates of elements are encoded as lists (N E) where N is the
--- number of duplicates of the element E.
-encode :: Eq b => [b] -> [(Integer, b)]
-encode = map (\(x : xs) -> (myLength (x : xs), x)) . pack
-
--- define a new data type to do the next questions
-data Encoded a = Multiple Int a | Single a deriving (Show)
-
--- Modified run-length encoding.
--- Modify the result of problem 10 in such a way that if an element has
--- no duplicates it is simply copied into the result list. Only elements with
--- duplicates are transferred as (N E) lists.
-encodeModified :: Eq b => [b] -> [Encoded b]
-encodeModified = map (\list@(x : xs) -> encode' x $ length list) . pack
+-- decodes a list
+decodeModified :: Eq a => [EncodingData a] -> [a]
+decodeModified = concatMap duplicateElements
   where
-    encode' x 1 = Single x
-    encode' x n = Multiple n x
+    duplicateElements (Single x) = [x]
+    duplicateElements (Multiple n x) = replicate n x
 
--- yo
-
--- Decode a run-length encoded list
--- Given a run-length code list generated as specified in problem 11. Construct its uncompressed version.
-decodeModified :: [Encoded a] -> [a]
-decodeModified = concatMap decode'
-  where
-    decode' (Multiple n a) = replicate n a
-    decode' (Single a) = [a]
-
--- Run-length encoding of a list (direct solution).
--- Implement the so-called run-length encoding data compression method directly.
--- I.e. don't explicitly create the sublists containing the duplicates, as in problem 9,
--- but only count them. As in problem P11, simplify the result list by
--- replacing the singleton lists (1 X) by X.
-encodeDirect :: Eq a => [a] -> [Encoded a]
+-- directly length encodes a list
+encodeDirect :: (Eq a) => [a] -> [EncodingData a]
 encodeDirect [] = []
-encodeDirect (x : xs) = encodeDirect' xs x 1
+encodeDirect lst@(x : xs) = obtainEncoding (countFirstOccurences lst x) x : encodeDirect (dropWhile (== x) xs)
   where
-    encodeDirect' [] curr 1 = [Single curr]
-    encodeDirect' [] curr n = [Multiple n curr]
-    encodeDirect' (d : ds) curr total
-      | d == curr = encodeDirect' ds curr (succ total)
-      | otherwise =
-        if total == 1
-          then Single curr : encodeDirect' ds d 1
-          else Multiple total curr : encodeDirect' ds d 1
+    obtainEncoding :: Int -> a -> EncodingData a
+    obtainEncoding 1 x = Single x
+    obtainEncoding n x = Multiple n x
+    countFirstOccurences :: Eq a => [a] -> a -> Int
+    countFirstOccurences [] _ = 0
+    countFirstOccurences (x : xs) a
+      | x /= a = 0
+      | otherwise = 1 + countFirstOccurences xs a
 
--- Duplicate the elements of a list.
+-- duplicates the elements of a list
 dupli :: [a] -> [a]
 dupli = foldr (\x xs -> x : x : xs) []
 
--- Replicate the elements of a list a given number of times.
+-- replicates the elements of a list
 repli :: [a] -> Int -> [a]
-repli list k = repli' list k
-  where
-    repli' [] _ = []
-    repli' (x : xs) 1 = x : repli' xs k
-    repli' (x : xs) n = x : repli' (x : xs) (pred n)
+repli lst n = foldr (\x xs -> replicate n x ++ xs) [] lst
 
--- Drop every N'th element from a list.
+-- drops every n-th element of a list
 dropEvery :: [a] -> Int -> [a]
-dropEvery list k = dropEvery' list k
-  where
-    dropEvery' [] _ = []
-    dropEvery' (x : xs) 1 = dropEvery' xs k
-    dropEvery' (x : xs) n = x : dropEvery' xs (pred n)
+dropEvery [] _ = []
+dropEvery lst n = take (n - 1) lst ++ dropEvery (drop n lst) n
 
--- Split a list into two parts; the length of the first part is given.
--- Yeah im lazy, your point?
+-- splits a list
 split :: [a] -> Int -> ([a], [a])
-split list k = splitAt k list
+split lst n = (take n lst, drop n lst)
 
--- Extract a slice from a list.
--- Slices a list containing the elements between the i'th and k'th element
--- of the original list (both limits included). Start counting the elements
--- with 1.
+-- extract a slice from a list
 slice :: [a] -> Int -> Int -> [a]
-slice list i k = slice' list i k 1
-  where
-    slice' [] _ _ _ = []
-    slice' (x : xs) i k n
-      | n >= i && n <= k = x : slice' xs i k (succ n)
-      | n > k = []
-      | otherwise = slice' xs i k $ succ n
+slice lst l r = take (r - l + 1) $ drop (l - 1) lst
 
--- Rotate a list N places to the left.
--- Linked lists and their efficiency lmao (I'm being sarcastic)
+-- rotates a list
 rotate :: [a] -> Int -> [a]
-rotate [] _ = []
-rotate list 0 = list
-rotate list@(x : xs) n
-  | n > 0 = rotate (xs ++ [x]) (pred n)
-  | otherwise = rotate list $ length list + n
+rotate lst n = let k = n `mod` length lst in drop k lst ++ take k lst
 
--- remove from the list a given element
-removeAt :: (Num t, Ord t, Enum t) => t -> [a] -> (a, [a])
-removeAt n list = removeAt' n list []
-  where
-    removeAt' _ [] acc = error "Index out of range"
-    removeAt' 1 (x : xs) acc = (x, reverse acc ++ xs)
-    removeAt' n (x : xs) acc = removeAt' (pred n) xs (x : acc)
+-- remove the k-th element from the list
+removeAt :: Int -> [a] -> Maybe (a, [a])
+removeAt n lst
+  | n <= 0 = Nothing
+  | otherwise =
+    let lstSuffix = drop (n - 1) lst
+     in if null lstSuffix then Nothing else Just (head lstSuffix, take (n - 1) lst ++ tail lstSuffix)
 
--- insert an element at a given position into a list
+-- inserts an element into a given position in a list
 insertAt :: a -> [a] -> Int -> [a]
-insertAt _ [] _ = error "Index out of range"
-insertAt elem (x : xs) 1 = elem : x : xs
-insertAt elem (x : xs) index = x : insertAt elem xs (pred index)
+insertAt a lst n
+  | n <= 0 || n > length lst = lst
+  | otherwise = take (n - 1) lst ++ (a : drop (n - 1) lst)
 
--- Create a list containing all integers within a given range.
-range :: Integer -> Integer -> [Integer]
-range a b
-  | a < b = [a .. b]
-  | otherwise = [a, (pred a) .. b]
+-- create a list of integers in a given range
+range :: Int -> Int -> [Int]
+range a b = if b >= a then [a .. b] else reverse [b .. a]
 
--- Extract a given number of randomly seleced elements
-rndSelect1 :: [a] -> Int -> IO [a]
-rndSelect1 list k = do
-  gen <- getStdGen
-  let nums = take k $ randomRs (0, pred . length $ list) gen
-  return $ map (list !!) nums
+-- randomly select elements from a list
+rndSelect :: [a] -> Int -> IO [a]
+rndSelect [] _ = return []
+rndSelect lst n = do
+  generator <- getStdGen
+  let indices = take n $ randomRs (0, length lst - 1) generator
+  return [lst !! i | i <- indices]
 
--- Lotto: Draw N different random numbers from the set 1..M.
-rndSelect2 :: Int -> Int -> IO [Int]
-rndSelect2 n m = do
-  gen <- getStdGen
-  let nums = take n $ randomRs (1, m) gen
-  return nums
+-- select n random numbers from the set 1 .. m
+diffSelect :: Int -> Int -> IO [Int]
+diffSelect n m = do
+  if n > m
+    then error $ "Cannot obtain " ++ show n ++ " distinct numbers"
+    else take n . nub . randomRs (1, m) <$> getStdGen
 
--- Generate a random permutation of the elements of a list.
--- Well isn't this efficient :P
+-- obtains a random permutation of a list
 rndPermu :: [a] -> IO [a]
-rndPermu list = do
-  gen <- getStdGen
-  return $ perms !! head (randomRs (0, pred . factorial $ length list) gen)
-  where
-    perms = permutations list
-    factorial n = product [1 .. n]
+rndPermu lst = do
+  nums <- take (length lst) . nub . randomRs (0, length lst - 1) <$> getStdGen
+  return [lst !! n | n <- nums]
 
--- Generate the combinations of K distinct objects chosen from the N elements of a list'
+-- generates the combinations of k distinct object from the n elements of a list
 combinations :: Int -> [a] -> [[a]]
-combinations n list = [a | a <- subsequences list, length a == n]
+combinations _ [] = []
+combinations n lst@(x : xs)
+  | n <= 0 = []
+  | n == 1 = [[a] | a <- lst]
+  | otherwise = [x : a | a <- combinations (n - 1) xs] ++ combinations n xs
 
--- Group the elements of a set into disjoint subsets.
--- HMMM, yeah no
+-- groups the elements of a set into disjoint subsets
+group' :: (Eq a) => [Int] -> [a] -> [[[a]]]
+group' [] _ = []
+group' [_] lst = [[lst]]
+group' (d : ds) lst = [c : g | c <- combinations d lst, g <- group' ds (lst \\ c)]
 
--- sort by length
-lsort :: [[a]] -> [[a]]
-lsort [] = []
-lsort (x : xs) = lsort lt ++ [x] ++ lsort gt
-  where
-    (lt, gt) = partition (\lambda -> length lambda < length x) xs
+-- sort a list according to the length of sublists
+lsort :: Foldable t => [t a] -> [t a]
+lsort = map snd . sortBy (\(a, _) (b, _) -> compare a b) . map (\x -> (length x, x))
 
--- sort by length frequency
-lfsort :: [[a]] -> [[a]]
-lfsort list = map snd . sortBy byTupleFst $ tuplify list
-  where
-    byTupleFst (a, _) (b, _)
-      | a < b = LT
-      | a > b = GT
-      | otherwise = EQ
-    tuplify = map (\a -> (occurences a, a))
-      where
-        occurences x = length $ filter (\b -> length b == length x) list
+-- length frequency sort
+lfsort :: (Foldable t1, Foldable t2) => t1 (t2 a) -> [t2 a]
+lfsort lst = concat . lsort . map snd . Map.toList $ foldr ((\(l, e) xs -> Map.insert l (e : Map.findWithDefault [] l xs) xs) . (\x -> (length x, x))) Map.empty lst
 
--- Determine whether a given integer number is prime.
-isPrime :: Integer -> Bool
+-- determine whether a given integer is prime
+isPrime :: Integral a => a -> Bool
 isPrime x
-  | x < 0 = isPrime $ negate x
-  | x <= 3 = x > 1
-  | even x || x `rem` 3 == 0 = False
-  | otherwise = recursiveCheck x 5
-  where
-    recursiveCheck x index
-      | index ^ 2 > x = True
-      | otherwise = not (x `rem` index == 0 || x `mod` (index + 2) == 0) && recursiveCheck x (index + 6)
+  | x < 2 = False
+  | otherwise = null [n | n <- [2 .. (floor $ sqrt $ fromIntegral x)], x `rem` n == 0]
 
--- Determine the greatest common divisor of two integer numbers
-myGCD :: Integer -> Integer -> Integer
+-- determines the greatest common divisor of two positive integer numbers
+myGCD :: Integral t => t -> t -> t
 myGCD a 0 = abs a
-myGCD a b = gcd b (a `mod` b)
+myGCD a b = myGCD b (a `mod` b)
 
--- Determine whether two positive integer numbers are coprime. Two numbers are coprime if their greatest common divisor equals 1.
-coprime :: Integer -> Integer -> Bool
+-- determines whether two positive integer numbers are coprime.
+coprime :: Integral t => t -> t -> Bool
 coprime a b = myGCD a b == 1
 
--- Calculate Euler's totient function phi(m).
-totient :: Integer -> Int
-totient x = (length . filter (`coprime` x)) [1 .. (pred x)]
+-- euler's totient function phi(m)
+totient :: (Show a, Integral a) => a -> Int
+totient 1 = 1
+totient m
+  | m < 1 = error $ "Cannot find the totient of (" ++ show m ++ ") as it is less than 1"
+  | otherwise = length $ filter (coprime m) [1 .. (m - 1)]
 
--- Determine the prime factors of a given positive integer. Construct a flat list containing the prime factors in ascending order.
--- Thank you, haskell lazy eval
-primeFactors :: Integer -> [Integer]
-primeFactors num = sort $ factors [] primes num
+-- a list of prime numbers from a up to b
+primes :: Integral a => a -> a -> [a]
+primes a b = [c | c <- [a .. b], isPrime c]
+
+-- prime factors of a number
+primeFactors :: Integral a => a -> [a]
+primeFactors n
+  | n < 2 = error "Can only find prime factors of positive integers greater than 2"
+  | isPrime n = [n]
+  | otherwise = primeFactors' [] n $ primes 2 n
   where
-    primes = filter isPrime [2 ..]
-    factors acc _ 1 = acc
-    factors acc list@(x : xs) n
-      | n `rem` x == 0 = factors (x : acc) list $ n `div` x
-      | otherwise = factors acc xs n
+    primeFactors' acc 1 _ = reverse acc
+    primeFactors' acc _ [] = error "Unable to find prime factors"
+    primeFactors' acc k lst@(x : xs)
+      | k `rem` x == 0 = let newNumber = k `div` x in primeFactors' (x : acc) newNumber $ primes x newNumber
+      | otherwise = primeFactors' acc k xs
 
--- Determine the prime factors of a given positive integer.
--- Construct a list containing the prime factors and their multiplicity.
-primeFactorsMult :: Integer -> [(Integer, Integer)]
-primeFactorsMult = map (\list@(x : xs) -> (x, fromIntegral . length $ list)) . group . primeFactors
-
--- Calculate Euler's totient function phi(m) (improved).
-phiMproved :: Integer -> Integer
-phiMproved num = foldr (\(p, m) xs -> (p - 1) * p ^ (m - 1) * xs) 1 $ primeFactorsMult num
-
--- Problem 38, solutions compared :P
-
--- Given a range of integers by its lower and upper limit, construct a
--- list of all prime numbers in that range.
-primesR :: Integer -> Integer -> [Integer]
-primesR a b = filter isPrime [a .. b]
-
--- Goldbach's conjecture.
-goldbach :: Integer -> (Integer, Integer)
-goldbach num
-  | num <= 2 = error "The number must be greater than 2 to apply"
-  | odd num = error "It has to be an even number for goldbach's conjecture to work!"
-  | otherwise =
-    let primeList = dropWhile (\x -> not $ isPrime $ num - x) $ filter isPrime [2 .. (num `div` 2)]
-     in conjecture primeList
+-- prime factors and their multiplicity
+primeFactorsMult :: (Num b, Integral a) => a -> [(a, b)]
+primeFactorsMult n = let (a : as) = primeFactors n in primeFactorsCombined a 1 as
   where
-    conjecture [] = error "Please contact a mathematician, Goldbach is wrong!"
-    conjecture (x : _) = (x, num - x)
+    primeFactorsCombined d c [] = [(d, c)]
+    primeFactorsCombined d c (x : xs)
+      | d == x = primeFactorsCombined x (c + 1) xs
+      | otherwise = (d, c) : primeFactorsCombined x 1 xs
 
--- Given a range of integers by its lower and upper limit,
--- print a list of all even numbers and their Goldbach composition.
-goldbachList :: Integer -> Integer -> [(Integer, Integer)]
-goldbachList a b = map goldbach $ filter even [a .. b]
+-- euler's improved totient function
+phi :: (Integral a, Show a) => a -> a
+phi 1 = 1
+phi m
+ | m < 1 = error $ "Cannot find the totient of (" ++ show m ++ ") as it is less than 1"
+ | otherwise = product $ map (\(p, m) -> (p - 1) * p ^ (m - 1)) $ primeFactorsMult m
 
--- In most cases, if an even number is written as the sum of two prime numbers,
--- one of them is very small. Very rarely, the primes are both bigger than say 50.
--- Try to find out how many such cases there are in the range 2..3000.
-goldbachList' :: Integer -> Integer -> Integer -> [(Integer, Integer)]
-goldbachList' a b inc = filter (\(a, b) -> a > inc && b > inc) $ map goldbach $ filter even [3 .. b]
+-- goldbach's conjecture
+goldbach :: Integral a => a -> (a, a)
+goldbach n
+ | n <= 2 || odd n = error "Goldbach's conjecture only works on positive even numbers greater than 2"
+ | otherwise = head [(x, y)| x <- primes 2 (n - 2), y <- primes 2 (n - 2), x + y == n]
+
+-- a list of even numbers in the goldbach list
+goldbachList :: Integral a => a -> a -> [(a, a)]
+goldbachList a b = [goldbach n | n <- [a..b], even n && n > 2]
+
+-- all of the numbers who's primes are greater than a certain number
+goldbachList' :: Integral a => a -> a -> a -> [(a, a)]
+goldbachList' a b n = [(c, d) | (c, d) <- goldbachList a b, c > n && d > n]
+
+-- logic definitions 
+and' :: Bool -> Bool -> Bool
+and' = (&&)
+
+or' :: Bool -> Bool -> Bool
+or' = (||)
+
+nand' :: Bool -> Bool -> Bool
+nand' x y = not $ and' x y
+
+nor' :: Bool -> Bool -> Bool
+nor' x y = not $ or' x y
+
+xor' :: Bool -> Bool -> Bool
+xor' x y = and' (or' x y) (not (and' x y))
+
+impl' :: Bool -> Bool -> Bool
+impl' x y = not (and' x $ not y)
+
+equiv' :: Bool -> Bool -> Bool
+equiv' x y = or' (and' x y) (and' (not x) (not y))
+
+-- make them infix with a precedence
+infixl 1 `or'`
+infixl 2 `xor'`
+infixl 3 `and'`
+infixl 4 `equiv'`
+infixl 1 `nor'`
+infixl 3 `nand'`
+infixl 4 `impl'`
+
+-- table prints the truth table of a given logical expression of two variables
+table :: (Bool -> Bool -> Bool) -> [[Bool]]
+table a = [[c, d, a c d]| c <- [True, False], d <- [True, False]]
+
+tablen :: (Num t, Ord t) => t -> ([Bool] -> Bool) -> [[Bool]]
+tablen n a = map ((\x -> x ++ [a x]) . reverse) (tableOfBools n)
+ where
+  tableOfBools 1 = [[a] | a <- [True, False]]
+  tableOfBools n
+   | n < 1 = error "n must be greater than 0"
+   | otherwise = [b : a | a <- tableOfBools (n - 1), b <- [True, False]]
+
+gray :: (Ord a, Num a) => a -> [[Char]]
+gray 1 = ["0", "1"]
+gray n
+ | n < 1 = error "Can only find gray codes of numbers greater than 0"
+ | otherwise = ['0' : b | b <- gray (n - 1)] ++ ['1' : b | b <- gray (n - 1)]
+
